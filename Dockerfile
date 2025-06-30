@@ -1,0 +1,13 @@
+FROM python:3.10.12-slim
+
+WORKDIR /app
+
+COPY requirements.txt .
+
+RUN apt-get update && apt-get install -y libpq-dev gcc
+
+RUN pip install --no-cache-dir -r requirements.txt
+
+EXPOSE 5000
+
+ENTRYPOINT ["mlflow"]
