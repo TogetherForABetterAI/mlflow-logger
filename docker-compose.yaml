@@ -16,7 +16,7 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - mlflow-network
+      - tpp-network
 
   # MinIO server
   minio:
@@ -37,7 +37,7 @@ services:
       retries: 5
     command: server /data --console-address ":${MINIO_CONSOLE_PORT}"
     networks:
-      - mlflow-network
+      - tpp-network
   # Create a bucket named "bucket" if it doesn't exist
   minio-create-bucket:
     image: minio/mc
@@ -54,7 +54,7 @@ services:
       fi
       "
     networks:
-      - mlflow-network
+      - tpp-network
 
   mlflow:
     build: .
@@ -77,8 +77,8 @@ services:
       --host 0.0.0.0
       --port ${MLFLOW_SERVER_PORT}
     networks:
-      - mlflow-network
+      - tpp-network
 
 networks:
-  mlflow-network:
+  tpp-network:
     external: true
