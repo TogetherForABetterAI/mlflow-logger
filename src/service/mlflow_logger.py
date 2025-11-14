@@ -3,9 +3,10 @@ import pandas as pd
 import mlflow
 import os
 import logging
-from lib.config import initialize_config
 from typing import List
 from multiprocessing import Process
+
+from src.lib.config import ARTIFACTS_DIR
 
 
 class MlflowLogger(Process):
@@ -36,11 +37,11 @@ class MlflowLogger(Process):
             )
 
             mlflow.start_run(run_id=session_id) # TODO: Change to use client's session id
-            self.log_single_batch(batch_index, probs, mock_inputs, mock_labels, session_id)
+            self.log_single_batch(batch_index, probs, mock_inputs, mock_labels)
             mlflow.end_run()
 
     def log_single_batch(
-        self, batch_index: int, probs: np.ndarray, inputs: np.ndarray, labels: List[int], session_id: str
+        self, batch_index: int, probs: np.ndarray, inputs: np.ndarray, labels: List[int]
     ):
         input_flat = inputs.reshape(inputs.shape[0], -1).tolist()
         probs_list = probs.tolist()
@@ -52,7 +53,7 @@ class MlflowLogger(Process):
         df = pd.DataFrame({"input": input_flat, "y_pred": probs_list, "y_test": labels})
 
         filename = f"batch_{batch_index}.parquet"
-        file_path = os.path.join(f"/artifacts/{self._curr_client}/{self._curr_session}", filename)
+        file_path = os.path.join(f"{ARTIFACTS_DIR}/{self._curr_client}/{self._curr_session}", filename)
         df.to_parquet(file_path, index=False)
     
         mlflow.log_artifact(file_path)

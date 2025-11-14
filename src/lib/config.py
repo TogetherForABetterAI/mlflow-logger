@@ -2,6 +2,8 @@ import os
 
 MLFLOW_EXCHANGE = "mlflow_exchange"
 MLFLOW_QUEUE_NAME = "mlflow_queue"
+MLFLOW_ROUTING_KEY = "mlflow.key"
+ARTIFACTS_DIR = os.path.join(os.getcwd(), "artifacts")
 
 
 

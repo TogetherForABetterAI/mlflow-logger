@@ -57,7 +57,9 @@ services:
       - tpp-network
 
   mlflow:
-    build: .
+    build: 
+      context: .
+      dockerfile: Dockerfile.server
     environment:
       - MLFLOW_TRACKING_URI=http://mlflow:${MLFLOW_SERVER_PORT}
       - MLFLOW_S3_ENDPOINT_URL=http://minio:${MINIO_API_PORT}
@@ -79,19 +81,21 @@ services:
     networks:
       - tpp-network
 
-    mlflow-logger:
-      build:
-        context: .
-        dockerfile: Dockerfile.logger
-      env_file:
-        - .env
-      depends_on:
-        mlflow:
-          condition: service_healthy
-        minio:
-          condition: service_healthy
-      networks:
-        - tpp-network
+  mlflow-logger:
+    build:
+      context: .
+      dockerfile: Dockerfile.logger
+    env_file:
+      - .env
+    depends_on:
+      mlflow:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    volumes:
+      - ./artifacts:/app/artifacts
+    networks:
+      - tpp-network
       
 volumes:
   postgres_data:

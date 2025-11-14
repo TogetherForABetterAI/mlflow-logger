@@ -1,15 +1,15 @@
 syntax = "proto3";
 
-package mlflow;
-
 message PredictionList {
   repeated float values = 1;
 }
 
-message MlflowMessage {
+message MlflowProbs {
   repeated PredictionList pred = 1;
   repeated int32 labels = 2;
   bool eof = 3;
   int32 batch_index = 4;
-  uuid client_id = 5;
+  string client_id = 5;
 }
+
+
