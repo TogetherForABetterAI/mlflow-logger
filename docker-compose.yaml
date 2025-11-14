@@ -78,6 +78,20 @@ services:
       --port ${MLFLOW_SERVER_PORT}
     networks:
       - tpp-network
+
+    mlflow-logger:
+      build:
+        context: .
+        dockerfile: Dockerfile.logger
+      env_file:
+        - .env
+      depends_on:
+        mlflow:
+          condition: service_healthy
+        minio:
+          condition: service_healthy
+      networks:
+        - tpp-network
       
 volumes:
   postgres_data:
