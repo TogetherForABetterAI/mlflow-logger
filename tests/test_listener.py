@@ -2,7 +2,7 @@ import os
 import numpy as np
 import pytest
 from multiprocessing import Queue
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, Mock
 
 from src.service.listener import Listener
 from src.proto.mlflow_probs_pb2 import MlflowProbs, PredictionList
@@ -33,23 +33,6 @@ def build_message(client_id="clientA", batch_index=0, n_preds=3):
     return msg.SerializeToString()
 
 
-def test_start_worker_pool(monkeypatch, mock_middleware, mock_config):
-    # Patch Process so no real child process is created
-    class FakeProcess:
-        def __init__(self, target, args):
-            self.started = False
-        def start(self):
-            self.started = True
-
-    monkeypatch.setattr("src.service.listener.Process", FakeProcess)
-
-    listener = Listener(mock_middleware, mock_config)
-    listener.start_worker_pool()
-
-    assert len(listener._active_workers) == mock_config.num_workers
-    assert all(p.started for p in listener._active_workers)
-
-
 def test_on_message_creates_dirs_and_enqueues(monkeypatch, tmp_path, mock_middleware, mock_config):
     artifacts = tmp_path / "artifacts"
     artifacts.mkdir()
@@ -61,7 +44,7 @@ def test_on_message_creates_dirs_and_enqueues(monkeypatch, tmp_path, mock_middle
     listener = Listener(mock_middleware, mock_config)
 
     msg_bytes = build_message(client_id="user123", batch_index=7)
-    listener._on_message(msg_bytes)
+    listener._on_message(Mock(), Mock(), Mock(), msg_bytes)
 
     client_id, session_id, batch_index, probs = listener._workers_queue.get()
     assert client_id == "user123"

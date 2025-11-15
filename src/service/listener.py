@@ -1,4 +1,5 @@
 
+import logging
 from multiprocessing import Queue
 from src.lib.config import ARTIFACTS_DIR, MLFLOW_QUEUE_NAME
 from multiprocessing import Process
@@ -6,7 +7,7 @@ from src.service.mlflow_logger import MlflowLogger
 from src.proto import mlflow_probs_pb2
 import os
 import numpy as np
-
+import mlflow
 
 class Listener:
     def __init__(self, middleware, config):
@@ -31,9 +32,10 @@ class Listener:
 
     def start_worker_pool(self):
         for i in range(self._config.num_workers):
-            p = Process(target=MlflowLogger, args=(self._workers_queue,))
-            p.start()
-            self._active_workers.append(p)  
+            mlflow_logger = MlflowLogger(self._workers_queue)
+            mlflow_logger.start()
+            logging.info(f"Started MlflowLogger worker process with PID {mlflow_logger.pid}")
+            self._active_workers.append(mlflow_logger)  
 
     def _get_session_id_from_client(self, client_id: str) -> str:
         """Retrieve the session ID for a given client ID."""
@@ -48,10 +50,11 @@ class Listener:
         for worker in self._active_workers:
             worker.join() 
 
-    def _on_message(self, body):
+    def _on_message(self, ch, method, properties, body):
         """Handle probability messages from the calibration queue."""
 
         try:
+            logging.info("Received message for MLflow logging")
             message = mlflow_probs_pb2.MlflowProbs()
             message.ParseFromString(body)
 
@@ -60,14 +63,25 @@ class Listener:
             # Check if the client_id dir is created in artifacts
             if message.client_id not in self._clients:
                 os.makedirs(os.path.join(ARTIFACTS_DIR, message.client_id), exist_ok=True)
-                self._clients[message.client_id] = set()
+                self._clients[message.client_id] = {}
 
             session_id = self._get_session_id_from_client(message.client_id)
             if session_id not in self._clients[message.client_id]:
                 os.makedirs(os.path.join(ARTIFACTS_DIR, message.client_id, session_id), exist_ok=True)
-                self._clients[message.client_id].add(session_id)
+                self._clients[message.client_id][session_id] = None
 
-            self._workers_queue.put((message.client_id, session_id, message.batch_index, probs))
+            run_id_file = os.path.join(ARTIFACTS_DIR, message.client_id, session_id, "run_id.txt")
+            if not os.path.exists(run_id_file):
+                with mlflow.start_run(run_name=session_id) as run:
+                    run_id = run.info.run_id
+
+                with open(run_id_file, "w") as f:
+                    f.write(run_id)
+            else:    
+                with open(run_id_file, "r") as f:
+                    run_id = f.read().strip()
+
+            self._workers_queue.put((message.client_id, run_id, session_id, message.batch_index, probs))
             
         except Exception as e:
             raise e

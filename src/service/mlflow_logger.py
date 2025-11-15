@@ -12,14 +12,16 @@ from src.lib.config import ARTIFACTS_DIR
 class MlflowLogger(Process):
     def __init__(self, workers_queue):
         super().__init__()
-
+        self.logger = logging.getLogger(f"mlflow-logger-{self.pid}")
+        self.logger.info("MlflowLogger process started")
         self._workers_queue = workers_queue
         self._curr_client = None
         self._curr_session = None
+        self._curr_run_id = None
 
     def run(self):
         while True:
-            client_id, session_id, batch_index, probs = self._workers_queue.get()
+            client_id, run_id, session_id, batch_index, probs = self._workers_queue.get()
             if probs is None:
                 break
 
@@ -30,13 +32,14 @@ class MlflowLogger(Process):
             mock_inputs = np.random.rand(batch_size, 1, 28, 28).astype(np.float32)
             mock_labels = np.random.randint(0, 10, size=batch_size).tolist()
             self._curr_client = client_id
+            self._curr_run_id = run_id
             self._curr_session = session_id
-
+        
             self._experiment = mlflow.set_experiment(
                 f"Calibration_Client_{client_id}"
             )
 
-            mlflow.start_run(run_id=session_id) # TODO: Change to use client's session id
+            mlflow.start_run(run_id=run_id) # TODO: Change to use client's session id
             self.log_single_batch(batch_index, probs, mock_inputs, mock_labels)
             mlflow.end_run()
 

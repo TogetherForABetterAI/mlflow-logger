@@ -87,11 +87,6 @@ services:
       dockerfile: Dockerfile.logger
     env_file:
       - .env
-    depends_on:
-      mlflow:
-        condition: service_healthy
-      minio:
-        condition: service_healthy
     volumes:
       - ./artifacts:/app/artifacts
     networks:
