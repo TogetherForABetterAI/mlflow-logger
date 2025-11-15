@@ -29,10 +29,13 @@ class Listener:
             self._channel, MLFLOW_QUEUE_NAME, self._on_message
         )
         self._middleware.start_consuming(self._channel)
+        
+        for worker in self._active_workers:
+            worker.join() 
 
     def start_worker_pool(self):
         for i in range(self._config.num_workers):
-            mlflow_logger = MlflowLogger(self._workers_queue)
+            mlflow_logger = MlflowLogger(self._workers_queue, self._config.tracking_uri)
             mlflow_logger.start()
             logging.info(f"Started MlflowLogger worker process with PID {mlflow_logger.pid}")
             self._active_workers.append(mlflow_logger)  
@@ -50,9 +53,8 @@ class Listener:
         for worker in self._active_workers:
             worker.join() 
 
-    def _on_message(self, ch, method, properties, body):
-        """Handle probability messages from the calibration queue."""
 
+    def _on_message(self, ch, method, properties, body):
         try:
             logging.info("Received message for MLflow logging")
             message = mlflow_probs_pb2.MlflowProbs()
@@ -60,30 +62,47 @@ class Listener:
 
             probs = np.array([list(p.values) for p in message.pred], dtype=np.float32)
 
-            # Check if the client_id dir is created in artifacts
+            # Ensure client directory exists
             if message.client_id not in self._clients:
                 os.makedirs(os.path.join(ARTIFACTS_DIR, message.client_id), exist_ok=True)
                 self._clients[message.client_id] = {}
 
             session_id = self._get_session_id_from_client(message.client_id)
+
+            # Ensure session directory exists
             if session_id not in self._clients[message.client_id]:
                 os.makedirs(os.path.join(ARTIFACTS_DIR, message.client_id, session_id), exist_ok=True)
                 self._clients[message.client_id][session_id] = None
 
+            # Check or create run_id
             run_id_file = os.path.join(ARTIFACTS_DIR, message.client_id, session_id, "run_id.txt")
+
             if not os.path.exists(run_id_file):
+                logging.info(f"Creating new MLflow run for client '{message.client_id}', session '{session_id}'")
+
+                mlflow.set_tracking_uri(self._config.tracking_uri)
+
+                mlflow.set_experiment(f"Calibration_Client_{message.client_id}")
+
                 with mlflow.start_run(run_name=session_id) as run:
                     run_id = run.info.run_id
+                    
+                logging.info(f"New MLflow run created with run_id: {run_id}")
 
                 with open(run_id_file, "w") as f:
                     f.write(run_id)
-            else:    
+
+            else:
+                logging.info(f"Using existing MLflow run for client '{message.client_id}', session '{session_id}'")
                 with open(run_id_file, "r") as f:
                     run_id = f.read().strip()
 
-            self._workers_queue.put((message.client_id, run_id, session_id, message.batch_index, probs))
-            
+            self._workers_queue.put(
+                (message.client_id, run_id, session_id, message.batch_index, probs)
+            )
+
         except Exception as e:
+            logging.exception("Unhandled exception in _on_message")
             raise e
 
 

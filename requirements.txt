@@ -2,4 +2,4 @@ mlflow
 psycopg2
 boto3
 protobuf
-
+pika

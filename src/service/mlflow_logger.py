@@ -10,7 +10,7 @@ from src.lib.config import ARTIFACTS_DIR
 
 
 class MlflowLogger(Process):
-    def __init__(self, workers_queue):
+    def __init__(self, workers_queue, tracking_uri):
         super().__init__()
         self.logger = logging.getLogger(f"mlflow-logger-{self.pid}")
         self.logger.info("MlflowLogger process started")
@@ -18,6 +18,7 @@ class MlflowLogger(Process):
         self._curr_client = None
         self._curr_session = None
         self._curr_run_id = None
+        self._tracking_uri = tracking_uri
 
     def run(self):
         while True:
@@ -34,6 +35,10 @@ class MlflowLogger(Process):
             self._curr_client = client_id
             self._curr_run_id = run_id
             self._curr_session = session_id
+            
+            logging.info(f"[MLflow] Tracking URI: {self._tracking_uri}")
+            mlflow.set_tracking_uri(self._tracking_uri)
+            logging.info(f"[MLflow] Logging for client: {client_id}, session: {session_id}, run: {run_id}, batch: {batch_index}")
         
             self._experiment = mlflow.set_experiment(
                 f"Calibration_Client_{client_id}"
@@ -55,7 +60,7 @@ class MlflowLogger(Process):
 
         df = pd.DataFrame({"input": input_flat, "y_pred": probs_list, "y_test": labels})
 
-        filename = f"batch_{batch_index}.parquet"
+        filename = f"batch_{batch_index:05d}.parquet"
         file_path = os.path.join(f"{ARTIFACTS_DIR}/{self._curr_client}/{self._curr_session}", filename)
         df.to_parquet(file_path, index=False)
     

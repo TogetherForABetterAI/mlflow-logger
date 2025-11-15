@@ -10,11 +10,17 @@ services:
       - MINIO_ROOT_PASSWORD=minio_password
       - MLFLOW_SERVER_PORT=5009
       - ARTIFACTS_PATH=/mlflow/artifacts
-      - TRACKING_URI=http://localhost:5000
+      - TRACKING_URI=http://mlflow:5009
+      - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
+      - AWS_ACCESS_KEY_ID=minio_user
+      - AWS_SECRET_ACCESS_KEY=minio_password
+
+    volumes:
+      - ./artifacts:/app/artifacts
 
     networks:
-      - test_network
+      - tpp-network
 
 networks:
-  test_network:
-    driver: bridge
+  tpp-network:
+    external: true
