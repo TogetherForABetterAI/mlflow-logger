@@ -17,6 +17,16 @@ class Config:
         self.password = os.getenv("RABBITMQ_PASSWORD", "guest")
         self.max_retries = int(os.getenv("MAX_RETRIES", "3"))
         self.num_workers = int(os.getenv("NUM_WORKERS", "4"))
+        self.postgres_host = os.getenv("POSTGRES_HOST", "postgres")
+        self.postgres_port = int(os.getenv("POSTGRES_PORT", "5432"))
+        self.postgres_user = os.getenv("POSTGRES_USER", "mlflow_user")
+        self.postgres_password = os.getenv("POSTGRES_PASSWORD", "mlflow_password")
+        self.postgres_db = os.getenv("POSTGRES_DB", "mlflow_db")
+        self.db_uri = (
+            f"postgresql://{self.postgres_user}:"
+            f"{self.postgres_password}@{self.postgres_host}:"
+            f"{self.postgres_port}/{self.postgres_db}"
+        )
 
 
 def initialize_config():   

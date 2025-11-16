@@ -1,6 +1,7 @@
 
 import logging
 from multiprocessing import Queue
+from src.service.run_registry import RunRegistry
 from src.lib.config import ARTIFACTS_DIR, MLFLOW_QUEUE_NAME
 from multiprocessing import Process
 from src.service.mlflow_logger import MlflowLogger
@@ -10,7 +11,7 @@ import numpy as np
 import mlflow
 
 class Listener:
-    def __init__(self, middleware, config):
+    def __init__(self, middleware, config, db):
         self._config = config
         self._middleware = middleware
         self._channel = self._middleware.create_channel()
@@ -21,6 +22,7 @@ class Listener:
                 self._clients[client_id] = session_id
                 
         self._active_workers = []
+        self._run_registry = db
 
 
     def run(self):
@@ -60,42 +62,20 @@ class Listener:
             message = mlflow_probs_pb2.MlflowProbs()
             message.ParseFromString(body)
 
-            probs = np.array([list(p.values) for p in message.pred], dtype=np.float32)
-
-            # Ensure client directory exists
-            if message.client_id not in self._clients:
-                os.makedirs(os.path.join(ARTIFACTS_DIR, message.client_id), exist_ok=True)
-                self._clients[message.client_id] = {}
-
             session_id = self._get_session_id_from_client(message.client_id)
 
-            # Ensure session directory exists
-            if session_id not in self._clients[message.client_id]:
-                os.makedirs(os.path.join(ARTIFACTS_DIR, message.client_id, session_id), exist_ok=True)
-                self._clients[message.client_id][session_id] = None
+            probs = np.array([list(p.values) for p in message.pred], dtype=np.float32)            
 
-            # Check or create run_id
-            run_id_file = os.path.join(ARTIFACTS_DIR, message.client_id, session_id, "run_id.txt")
+            run_id = self._run_registry.get_run_id(session_id)
 
-            if not os.path.exists(run_id_file):
-                logging.info(f"Creating new MLflow run for client '{message.client_id}', session '{session_id}'")
-
+            if run_id is None:
                 mlflow.set_tracking_uri(self._config.tracking_uri)
-
                 mlflow.set_experiment(f"Calibration_Client_{message.client_id}")
 
                 with mlflow.start_run(run_name=session_id) as run:
                     run_id = run.info.run_id
-                    
-                logging.info(f"New MLflow run created with run_id: {run_id}")
 
-                with open(run_id_file, "w") as f:
-                    f.write(run_id)
-
-            else:
-                logging.info(f"Using existing MLflow run for client '{message.client_id}', session '{session_id}'")
-                with open(run_id_file, "r") as f:
-                    run_id = f.read().strip()
+                self._run_registry.save_run_id(session_id, run_id)
 
             self._workers_queue.put(
                 (message.client_id, run_id, session_id, message.batch_index, probs)

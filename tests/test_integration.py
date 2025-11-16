@@ -18,6 +18,7 @@ def mock_config():
         password="rabbit",
         max_retries=3,
         num_workers=4,
+        db_uri="postgresql://user:password@test-sessions-db:5432/mlflow_db",
     )
     
     return config
