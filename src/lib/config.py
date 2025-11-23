@@ -1,10 +1,9 @@
-import os 
+import os
 
 MLFLOW_EXCHANGE = "mlflow_exchange"
 MLFLOW_QUEUE_NAME = "mlflow_queue"
 MLFLOW_ROUTING_KEY = "mlflow.key"
 ARTIFACTS_DIR = os.path.join(os.getcwd(), "artifacts")
-
 
 
 class Config:
@@ -17,10 +16,14 @@ class Config:
         self.password = os.getenv("RABBITMQ_PASSWORD", "guest")
         self.max_retries = int(os.getenv("MAX_RETRIES", "3"))
         self.num_workers = int(os.getenv("NUM_WORKERS", "4"))
-        self.postgres_host = os.getenv("MLFLOW_LOGGER_POSTGRES_HOST", "postgres")
-        self.postgres_port = int(os.getenv("MLFLOW_LOGGER_POSTGRES_PORT", "5436"))
+        self.postgres_host = os.getenv("MLFLOW_LOGGER_POSTGRES_HOST", "sessions-db")
+        self.postgres_port = int(
+            os.getenv("MLFLOW_LOGGER_POSTGRES_INTERNAL_PORT", "5432")
+        )
         self.postgres_user = os.getenv("MLFLOW_LOGGER_POSTGRES_USER", "mlflow_user")
-        self.postgres_password = os.getenv("MLFLOW_LOGGER_POSTGRES_PASSWORD", "mlflow_password")
+        self.postgres_password = os.getenv(
+            "MLFLOW_LOGGER_POSTGRES_PASSWORD", "mlflow_password"
+        )
         self.postgres_db = os.getenv("MLFLOW_LOGGER_POSTGRES_DB", "mlflow_db")
         self.db_uri = (
             f"postgresql://{self.postgres_user}:"
@@ -29,5 +32,5 @@ class Config:
         )
 
 
-def initialize_config():   
-    return Config() 
+def initialize_config():
+    return Config()
