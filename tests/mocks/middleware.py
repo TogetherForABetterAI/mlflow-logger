@@ -46,10 +46,10 @@ class FakeMiddleware:
         # Generate fake MlflowProbs message
         for i in range(10):
             message = MlflowProbs()
-            message.client_id = "client_123"
+            message.client_id = "acde070d-8c4c-4f0d-9d8a-162843c10333"
             message.batch_index = i
             pred = PredictionList()
-            pred.values.extend([0.1, 0.9, 0.8, 0.2, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+            pred.values.extend([0.1, 0.8, 0.0, 0.2, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
             message.pred.append(pred)
             self.callback(Mock(), Mock(), Mock(), message.SerializeToString())
 

@@ -16,11 +16,6 @@ class Listener:
         self._middleware = middleware
         self._channel = self._middleware.create_channel()
         self._workers_queue = Queue()
-        self._clients = {}
-        for client_id in os.listdir(ARTIFACTS_DIR):
-            for session_id in os.listdir(os.path.join(ARTIFACTS_DIR, client_id)):
-                self._clients[client_id] = session_id
-                
         self._active_workers = []
         self._run_registry = db
 
@@ -45,7 +40,7 @@ class Listener:
     def _get_session_id_from_client(self, client_id: str) -> str:
         """Retrieve the session ID for a given client ID."""
         # Se obtiene el session_id pegandole al API Gateway
-        return "session_" + client_id
+        return "83e5f772-1780-41ea-9e5f-04bc8f9558e3"
     
     def handle_sigterm(self, signum, frame):
         """Handle SIGTERM signal for graceful shutdown."""
@@ -70,7 +65,7 @@ class Listener:
 
             if run_id is None:
                 mlflow.set_tracking_uri(self._config.tracking_uri)
-                mlflow.set_experiment(f"Calibration_Client_{message.client_id}")
+                mlflow.set_experiment("syngenta")
 
                 with mlflow.start_run(run_name=session_id) as run:
                     run_id = run.info.run_id

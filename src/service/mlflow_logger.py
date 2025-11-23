@@ -40,9 +40,7 @@ class MlflowLogger(Process):
             mlflow.set_tracking_uri(self._tracking_uri)
             logging.info(f"[MLflow] Logging for client: {client_id}, session: {session_id}, run: {run_id}, batch: {batch_index}")
         
-            self._experiment = mlflow.set_experiment(
-                f"Calibration_Client_{client_id}"
-            )
+            self._experiment = mlflow.set_experiment("syngenta")
 
             mlflow.start_run(run_id=run_id) # TODO: Change to use client's session id
             self.log_single_batch(batch_index, probs, mock_inputs, mock_labels)
@@ -61,7 +59,7 @@ class MlflowLogger(Process):
         df = pd.DataFrame({"input": input_flat, "y_pred": probs_list, "y_test": labels})
 
         filename = f"batch_{batch_index:05d}.parquet"
-        file_path = os.path.join(f"{ARTIFACTS_DIR}/{self._curr_client}/{self._curr_session}", filename)
+        file_path = os.path.join(f"{ARTIFACTS_DIR}", filename)
         df.to_parquet(file_path, index=False)
     
         mlflow.log_artifact(file_path)

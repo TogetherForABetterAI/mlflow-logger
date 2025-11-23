@@ -10,17 +10,17 @@ services:
 
   sessions-db:
     container_name: sessions-db
-    image: postgres:latest
+    image: postgres:18-alpine
     environment:
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${MLFLOW_LOGGER_POSTGRES_USER}
+      - POSTGRES_PASSWORD=${MLFLOW_LOGGER_POSTGRES_PASSWORD}
+      - POSTGRES_DB=${MLFLOW_LOGGER_POSTGRES_DB}
     ports:
-      - ${POSTGRES_PORT}:5432
+      - ${MLFLOW_LOGGER_POSTGRES_PORT}:5432
     volumes:
       - postgres_data_mlflow_logger:/var/lib/postgresql
     healthcheck:
-      test: bash -c 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"'
+      test: bash -c 'pg_isready -U "$$MLFLOW_LOGGER_POSTGRES_USER" -d "$$MLFLOW_LOGGER_POSTGRES_DB"'
       interval: 10s
       timeout: 5s
       retries: 5

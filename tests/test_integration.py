@@ -2,6 +2,7 @@ import os
 import time
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
+from src.service.run_registry import RunRegistry
 from src.lib.logger import initialize_logging
 from src.service.listener import Listener
 import pytest
@@ -24,11 +25,12 @@ def mock_config():
     return config
 
 
-# def test_integration(mock_config):
-#     mock_middleware = FakeMiddleware(mock_config)
-#     initialize_logging(mock_config.logging_level)
-#     listener = Listener(mock_middleware, mock_config)
-#     listener.run()
+def test_integration(mock_config):
+    mock_middleware = FakeMiddleware(mock_config)
+    initialize_logging(mock_config.logging_level)
+    db = RunRegistry(mock_config.db_uri)
+    listener = Listener(mock_middleware, mock_config, db)
+    listener.run()
     
 
     

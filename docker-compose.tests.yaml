@@ -14,9 +14,28 @@ services:
       - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
       - AWS_ACCESS_KEY_ID=minio_user
       - AWS_SECRET_ACCESS_KEY=minio_password
+    depends_on:
+      - test-sessions-db
     networks:
-      - test-network
+      - tpp-network
+
+  test-sessions-db:
+    container_name: test-sessions-db
+    image: postgres:latest
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=mlflow_db
+    ports:
+      - 5435:5432
+    healthcheck:
+      test: bash -c 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"'
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tpp-network
 
 networks:
-  test-network:
-    driver: bridge
+  tpp-network:
+    external: true
