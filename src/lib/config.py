@@ -21,6 +21,7 @@ class Config:
             os.getenv("MLFLOW_LOGGER_POSTGRES_INTERNAL_PORT", "5432")
         )
         self.postgres_user = os.getenv("MLFLOW_LOGGER_POSTGRES_USER", "mlflow_user")
+        print(f"Postgres User: {self.postgres_user}")
         self.postgres_password = os.getenv(
             "MLFLOW_LOGGER_POSTGRES_PASSWORD", "mlflow_password"
         )

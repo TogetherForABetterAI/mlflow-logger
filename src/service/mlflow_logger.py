@@ -26,9 +26,6 @@ class MlflowLogger(Process):
             if probs is None:
                 break
 
-            # TODO: Look for inputs data and labels
-            # TODO: Look for client's session id
-
             batch_size = len(probs)
             mock_inputs = np.random.rand(batch_size, 1, 28, 28).astype(np.float32)
             mock_labels = np.random.randint(0, 10, size=batch_size).tolist()
@@ -40,7 +37,7 @@ class MlflowLogger(Process):
             mlflow.set_tracking_uri(self._tracking_uri)
             logging.info(f"[MLflow] Logging for client: {client_id}, session: {session_id}, run: {run_id}, batch: {batch_index}")
         
-            self._experiment = mlflow.set_experiment("syngenta")
+            self._experiment = mlflow.set_experiment(client_id)
 
             mlflow.start_run(run_id=run_id) # TODO: Change to use client's session id
             self.log_single_batch(batch_index, probs, mock_inputs, mock_labels)

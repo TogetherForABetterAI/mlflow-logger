@@ -1,6 +1,8 @@
 
+import http
 import logging
 from multiprocessing import Queue
+import uuid
 from src.service.run_registry import RunRegistry
 from src.lib.config import ARTIFACTS_DIR, MLFLOW_QUEUE_NAME
 from multiprocessing import Process
@@ -18,7 +20,7 @@ class Listener:
         self._workers_queue = Queue()
         self._active_workers = []
         self._run_registry = db
-
+        self._session_id = str(uuid.uuid4())  # Placeholder for session ID retrieval
 
     def run(self):
         self.start_worker_pool()
@@ -40,7 +42,7 @@ class Listener:
     def _get_session_id_from_client(self, client_id: str) -> str:
         """Retrieve the session ID for a given client ID."""
         # Se obtiene el session_id pegandole al API Gateway
-        return "83e5f772-1780-41ea-9e5f-04bc8f9558e3"
+        return self._session_id
     
     def handle_sigterm(self, signum, frame):
         """Handle SIGTERM signal for graceful shutdown."""
@@ -65,7 +67,7 @@ class Listener:
 
             if run_id is None:
                 mlflow.set_tracking_uri(self._config.tracking_uri)
-                mlflow.set_experiment("syngenta")
+                mlflow.set_experiment(message.client_id)
 
                 with mlflow.start_run(run_name=session_id) as run:
                     run_id = run.info.run_id
