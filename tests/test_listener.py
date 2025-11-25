@@ -61,7 +61,8 @@ def test_on_message_creates_run(
         assert args[0] == "123"          
         assert args[1] == "run_generated"
         assert args[2] == "session_123"
-        assert args[3] == 4             
+        assert args[3] == 4  
+                   
 def test_on_message_uses_existing_run(dummy_config, dummy_middleware, tmp_path):
     dummy_db = MagicMock()
     dummy_db.get_run_id.return_value = "existing_run"

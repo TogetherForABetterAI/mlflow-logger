@@ -8,9 +8,6 @@ from src.service.mlflow_logger import MlflowLogger
 def logger(tmp_path):
     q = MagicMock()
     ml = MlflowLogger(q, "http://mlflow:5009")
-    ml._curr_client = "c1"
-    ml._curr_session = "s1"
-    ml._curr_run_id = "run1"
     return ml
 
 
@@ -24,8 +21,8 @@ def test_run_main_loop(mock_exp, mock_end, mock_start, mock_set, tmp_path):
 
     # Simula mensajes en la queue
     q.get.side_effect = [
-        ("c1", "run1", "session1", 0, np.zeros((2, 10))),
-        (None, None, None, None, None),   # señal de terminar
+        ("c1", "run1"),
+        (None, None),   # señal de terminar
     ]
 
     # Evita escribir parquet durante esta prueba

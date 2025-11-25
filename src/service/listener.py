@@ -38,17 +38,12 @@ class Listener:
             mlflow_logger.start()
             logging.info(f"Started MlflowLogger worker process with PID {mlflow_logger.pid}")
             self._active_workers.append(mlflow_logger)  
-
-    def _get_session_id_from_client(self, client_id: str) -> str:
-        """Retrieve the session ID for a given client ID."""
-        # Se obtiene el session_id pegandole al API Gateway
-        return self._session_id
     
     def handle_sigterm(self, signum, frame):
         """Handle SIGTERM signal for graceful shutdown."""
         self._middleware.stop_consuming(self._channel)
         for _ in self._active_workers:
-            self._workers_queue.put((None, None, None, None))
+            self._workers_queue.put((None, None))
         for worker in self._active_workers:
             worker.join() 
 
@@ -58,10 +53,7 @@ class Listener:
             logging.info("Received message for MLflow logging")
             message = mlflow_probs_pb2.MlflowProbs()
             message.ParseFromString(body)
-
-            session_id = self._get_session_id_from_client(message.client_id)
-
-            probs = np.array([list(p.values) for p in message.pred], dtype=np.float32)            
+            session_id = message.session_id
 
             run_id = self._run_registry.get_run_id(session_id)
 
@@ -75,7 +67,7 @@ class Listener:
                 self._run_registry.save_run_id(session_id, run_id)
 
             self._workers_queue.put(
-                (message.client_id, run_id, session_id, message.batch_index, probs)
+                (message, run_id)
             )
 
         except Exception as e:
