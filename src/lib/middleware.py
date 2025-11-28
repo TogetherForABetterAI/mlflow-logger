@@ -1,6 +1,6 @@
 import logging
 import pika
-from lib.config import MLFLOW_EXCHANGE, MLFLOW_QUEUE_NAME
+from lib.config import MLFLOW_EXCHANGE, MLFLOW_QUEUE_NAME, MLFLOW_ROUTING_KEY
 
 class Middleware:
     def __init__(self, config):
@@ -30,7 +30,7 @@ class Middleware:
         )
 
         self.declare_queue(channel, MLFLOW_QUEUE_NAME, durable=True)
-        self.bind_queue(channel, MLFLOW_QUEUE_NAME, MLFLOW_EXCHANGE, routing_key="mlflow.key")
+        self.bind_queue(channel, MLFLOW_QUEUE_NAME, MLFLOW_EXCHANGE, routing_key=MLFLOW_ROUTING_KEY)
 
     def is_running(self):
         return self._is_running

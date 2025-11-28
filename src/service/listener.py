@@ -1,15 +1,14 @@
 
-import http
+
 import logging
 from multiprocessing import Queue
 import uuid
-from src.service.run_registry import RunRegistry
-from src.lib.config import ARTIFACTS_DIR, MLFLOW_QUEUE_NAME
-from multiprocessing import Process
+
+import numpy as np
+from lib.model import LoggingDTO
+from src.lib.config import MLFLOW_QUEUE_NAME
 from src.service.mlflow_logger import MlflowLogger
 from src.proto import mlflow_probs_pb2
-import os
-import numpy as np
 import mlflow
 
 class Listener:
@@ -66,9 +65,16 @@ class Listener:
 
                 self._run_registry.save_run_id(session_id, run_id)
 
-            self._workers_queue.put(
-                (message, run_id)
+            mlflow_data = LoggingDTO(
+                client_id=message.client_id,
+                session_id=message.session_id,
+                run_id=run_id,
+                inputs=message.data,
+                labels=list(message.labels),
+                pred=np.array([list(p.values) for p in message.pred], dtype=np.float32),
+                batch_index=message.batch_index,
             )
+            self._workers_queue.put(mlflow_data)
 
         except Exception as e:
             logging.exception("Unhandled exception in _on_message")

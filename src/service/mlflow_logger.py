@@ -1,4 +1,3 @@
-from fileinput import filename
 import numpy as np
 import pandas as pd
 import mlflow
@@ -20,22 +19,21 @@ class MlflowLogger(Process):
 
     def run(self):
         while True:
-            message, run_id = self._workers_queue.get()
-            if message is None:
+            mlflow_data = self._workers_queue.get()
+            if mlflow_data is None:
                 break
 
-            probs = np.array([list(p.values) for p in message.pred], dtype=np.float32)            
-            client_id = message.client_id
-            batch_index = message.batch_index
-            inputs = message.data
-            labels = message.labels
+            client_id = mlflow_data.client_id
+            batch_index = mlflow_data.batch_index
+            inputs = mlflow_data.inputs
+            labels = mlflow_data.labels
 
             mlflow.set_tracking_uri(self._tracking_uri)
         
             self._experiment = mlflow.set_experiment(client_id)
 
-            mlflow.start_run(run_id=run_id)
-            self.log_single_batch(batch_index, probs, inputs, labels)
+            mlflow.start_run(run_id=mlflow_data.run_id)
+            self.log_single_batch(batch_index, mlflow_data.pred, inputs, labels)
         
             logging.info(
                 f"[MLflow] Logged batch {batch_index} for client {client_id}"
