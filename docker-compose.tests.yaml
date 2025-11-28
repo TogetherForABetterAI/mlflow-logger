@@ -1,0 +1,41 @@
+services:
+  mlflow_test_service:
+    build:
+      context: .
+      dockerfile: Dockerfile.tests
+    environment:
+      - MINIO_API_PORT=9000
+      - MINIO_CONSOLE_PORT=9001
+      - MINIO_ROOT_USER=minio_user
+      - MINIO_ROOT_PASSWORD=minio_password
+      - MLFLOW_SERVER_PORT=5009
+      - ARTIFACTS_PATH=/mlflow/artifacts
+      - TRACKING_URI=http://mlflow:5009
+      - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
+      - AWS_ACCESS_KEY_ID=minio_user
+      - AWS_SECRET_ACCESS_KEY=minio_password
+    depends_on:
+      - test-sessions-db
+    networks:
+      - tpp-network
+
+  test-sessions-db:
+    container_name: test-sessions-db
+    image: postgres:latest
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=mlflow_db
+    ports:
+      - 5435:5432
+    healthcheck:
+      test: bash -c 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"'
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tpp-network
+
+networks:
+  tpp-network:
+    external: true
