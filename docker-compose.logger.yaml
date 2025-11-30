@@ -14,12 +14,12 @@ services:
   sessions-db:
     container_name: sessions-db
     image: postgres:15
+    ports:
+      - ${MLFLOW_LOGGER_POSTGRES_EXTERNAL_PORT}:5432
     environment:
       - POSTGRES_USER=${MLFLOW_LOGGER_POSTGRES_USER}
       - POSTGRES_PASSWORD=${MLFLOW_LOGGER_POSTGRES_PASSWORD}
       - POSTGRES_DB=${MLFLOW_LOGGER_POSTGRES_DB}
-    ports:
-      - ${MLFLOW_LOGGER_POSTGRES_PORT}:5432
     volumes:
       - postgres_data_mlflow_logger:/var/lib/postgresql/data
     healthcheck:
