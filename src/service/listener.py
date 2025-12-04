@@ -15,7 +15,7 @@ class Listener:
     def __init__(self, middleware, config, db):
         self._config = config
         self._middleware = middleware
-        self._channel = self._middleware.create_channel()
+        self._channel = self._middleware.create_channel(prefetch_count=config.num_workers)
         self._workers_queue = Queue()
         self._active_workers = []
         self._run_registry = db
