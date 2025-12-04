@@ -1,4 +1,4 @@
-from lib import logger
+import logging
 from service.run_registry import RunRegistry
 from src.lib.logger import initialize_logging
 from src.service.listener import Listener
@@ -15,7 +15,7 @@ def main():
         listener = Listener(middleware, config, db)
         listener.run()
     except Exception as e:
-        logger.error(f"Application failed to start: {e}")
+        logging.error(f"Application failed to start: {e}")
 
 
 if __name__ == "__main__":

@@ -2,7 +2,7 @@
 
 from sqlite3 import OperationalError
 from time import time
-from lib import logger
+import logging
 from sqlalchemy import create_engine, Column, String
 from sqlalchemy.orm import declarative_base, sessionmaker
 
@@ -31,19 +31,19 @@ class RunRegistry:
 
         for attempt in range(max_retries):
             try:
-                logger.info(
+                logging.info(
                     f"Trying to connect to the DB, attempt {attempt + 1} of {max_retries}..."
                 )
                 Base.metadata.create_all(self.engine)
-                logger.info("Sucesfully connected to the DB.")
+                logging.info("Sucesfully connected to the DB.")
                 return
             except OperationalError as e:
-                logger.warning(
+                logging.warning(
                     f"DB is not ready yet: {e}, waiting {wait_seconds} seconds before retrying..."
                 )
                 time.sleep(wait_seconds)
             except Exception as e:
-                logger.error(f"Unexpected error during DB initialization: {e}")
+                logging.error(f"Unexpected error during DB initialization: {e}")
                 raise e
 
         raise Exception("Failed to connect to the DB after multiple attempts.")
