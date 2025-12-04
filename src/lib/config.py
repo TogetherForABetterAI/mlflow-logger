@@ -11,6 +11,7 @@ class Config:
         self.tracking_uri = os.getenv("TRACKING_URI", "http://mlflow:5000")
         self.logging_level = os.getenv("LOGGING_LEVEL", "INFO")
         self.host = os.getenv("RABBITMQ_HOST", "rabbitmq")
+        self.pod_name = os.getenv("POD_NAME", "mlflow-logger-pod")
         self.port = int(os.getenv("RABBITMQ_PORT", "5672"))
         self.username = os.getenv("RABBITMQ_USER", "guest")
         self.password = os.getenv("RABBITMQ_PASSWORD", "guest")

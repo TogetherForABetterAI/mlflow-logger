@@ -2,6 +2,7 @@ import logging
 import pika
 from lib.config import MLFLOW_EXCHANGE, MLFLOW_QUEUE_NAME, MLFLOW_ROUTING_KEY
 
+
 class Middleware:
     def __init__(self, config):
         self.config = config
@@ -14,10 +15,10 @@ class Middleware:
             credentials = pika.PlainCredentials(config.username, config.password)
             self.conn = pika.BlockingConnection(
                 pika.ConnectionParameters(
-                    host=config.host, 
-                    port=config.port, 
-                    credentials=credentials, 
-                    heartbeat=5000
+                    host=config.host,
+                    port=config.port,
+                    credentials=credentials,
+                    heartbeat=5000,
                 )
             )
             self.logger.info(
@@ -26,7 +27,7 @@ class Middleware:
         except Exception as e:
             self.logger.error(f"Failed to connect to RabbitMQ: {e}")
             raise e
-        
+
         channel = self.create_channel()
 
         self.declare_exchange(
@@ -34,7 +35,9 @@ class Middleware:
         )
 
         self.declare_queue(channel, MLFLOW_QUEUE_NAME, durable=True)
-        self.bind_queue(channel, MLFLOW_QUEUE_NAME, MLFLOW_EXCHANGE, routing_key=MLFLOW_ROUTING_KEY)
+        self.bind_queue(
+            channel, MLFLOW_QUEUE_NAME, MLFLOW_EXCHANGE, routing_key=MLFLOW_ROUTING_KEY
+        )
 
     def is_running(self):
         return self._is_running
@@ -87,16 +90,19 @@ class Middleware:
             )
             raise e
 
-    def basic_consume(self, channel, queue_name: str, callback_function) -> str:
+    def basic_consume(
+        self, channel, queue_name: str, callback_function, consumer_tag=None
+    ) -> str:
         self.logger.info(f"Setting up consumer for queue: {queue_name}")
         self.consumer_tag = channel.basic_consume(
             queue=queue_name,
             on_message_callback=self.callback_wrapper(callback_function),
             auto_ack=False,
+            consumer_tag=consumer_tag,
         )
-    
+
     def basic_send(
-        self, 
+        self,
         channel,
         exchange_name: str,
         routing_key: str,
@@ -115,13 +121,14 @@ class Middleware:
                 f"Failed to send message to exchange '{exchange_name}' "
                 f"with routing key '{routing_key}': {e}"
             )
-            raise e 
-    
+            raise e
+
     def on_callback(self):
         return self._on_callback
-        
+
     def callback_wrapper(self, callback_function):
         self._on_callback = True
+
         def wrapper(ch, method, properties, body):
             try:
                 callback_function(ch, method, properties, body)
@@ -151,24 +158,22 @@ class Middleware:
         try:
             if self._is_running:
                 raise Exception("Cannot close channel while middleware is running")
-            
+
             if channel and channel.is_open:
                 channel.basic_cancel(self.consumer_tag)
                 channel.stop_consuming()
                 channel.close()
                 self.logger.info("Stopped consuming messages")
         except Exception as e:
-            self.logger.error(f"action: rabbitmq_channel_close | result: fail | error: {e}")
+            self.logger.error(
+                f"action: rabbitmq_channel_close | result: fail | error: {e}"
+            )
 
     def cancel_channel_consuming(self, channel):
         if channel and channel.is_open:
             self.logger.info(f"Cancelling consumer for channel: {channel}")
             channel.basic_cancel(consumer_tag=self.consumer_tag)
             self.channel.stop_consuming()
-            
-    def stop_consuming(self):
-        self._is_running = False
-        self.logger.info("Stopped consuming messages")
 
     def delete_queue(self, channel, queue_name: str):
         try:
@@ -177,14 +182,30 @@ class Middleware:
         except Exception as e:
             self.logger.error(f"Failed to delete queue '{queue_name}': {e}")
 
+    def stop_consuming(self, consumer_tag: str):
+        """
+        Stop consuming messages for a specific consumer.
+        This allows graceful shutdown by preventing new messages from being consumed.
+
+        Args:
+            consumer_tag: The consumer tag to stop)
+        """
+        self.is_running = False
+        try:
+            if self.channel and not self.channel.is_closed:
+                self.channel.basic_cancel(consumer_tag)
+                self.logger.info(f"Consumer {consumer_tag} stopped successfully")
+            else:
+                self.logger.warning("Channel is already closed, cannot stop consuming")
+        except Exception as e:
+            self.logger.error(f"Error stopping consumer {consumer_tag}: {e}")
+            raise e
+
     def close_connection(self):
         try:
-            if self._is_running:
-                raise Exception("Cannot close connection while middleware is running")
-            
-            self.conn.close()
-            self.logger.info("RabbitMQ connection closed")
+            if self.connection and not self.connection.is_closed:
+                self.connection.close()
+                self.logger.info("Connection closed")
         except Exception as e:
-            self.logger.error(f"Failed to close RabbitMQ connection: {e}")
+            self.logger.error(f"Error closing connection: {e}")
             raise e
-        
