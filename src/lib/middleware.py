@@ -130,7 +130,7 @@ class Middleware:
                 self.logger.error(
                     f"action: rabbitmq_callback | result: fail | error: {e}"
                 )
-                ch.basic_nack(delivery_tag=method.delivery_tag, requeue=True)
+                ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
 
             if not self._is_running:
                 self.cancel_channel_consuming(ch)
