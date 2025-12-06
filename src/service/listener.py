@@ -1,5 +1,6 @@
 import logging
 from multiprocessing import Queue
+import os
 import uuid
 
 import numpy as np
@@ -21,11 +22,16 @@ class Listener:
         self._active_workers = []
         self._run_registry = db
         self._session_id = str(uuid.uuid4())  # Placeholder for session ID retrieval
+        self.tracking_username = config.mlflow_tracking_username
+        self.tracking_password = config.mlflow_tracking_password
 
     def run(self):
         self.start_worker_pool()
         self._middleware.basic_consume(
-            self._channel, MLFLOW_QUEUE_NAME, self._on_message, consumer_tag=self._config.pod_name
+            self._channel,
+            MLFLOW_QUEUE_NAME,
+            self._on_message,
+            consumer_tag=self._config.pod_name,
         )
         self._middleware.start_consuming(self._channel)
 
@@ -34,7 +40,12 @@ class Listener:
 
     def start_worker_pool(self):
         for i in range(self._config.num_workers):
-            mlflow_logger = MlflowLogger(self._workers_queue, self._config.tracking_uri)
+            mlflow_logger = MlflowLogger(
+                self._workers_queue,
+                self._config.tracking_uri,
+                self.tracking_username,
+                self.tracking_password,
+            )
             mlflow_logger.start()
             logging.info(
                 f"Started MlflowLogger worker process with PID {mlflow_logger.pid}"
@@ -64,6 +75,12 @@ class Listener:
             run_id = self._run_registry.get_run_id(session_id)
 
             if run_id is None:
+                os.environ["MLFLOW_TRACKING_USERNAME"] = (
+                    self._config.mlflow_tracking_username
+                )
+                os.environ["MLFLOW_TRACKING_PASSWORD"] = (
+                    self._config.mlflow_tracking_password
+                )
                 mlflow.set_tracking_uri(self._config.tracking_uri)
                 mlflow.set_experiment(message.client_id)
 

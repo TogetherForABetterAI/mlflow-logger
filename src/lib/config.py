@@ -21,6 +21,13 @@ class Config:
         self.postgres_port = int(
             os.getenv("MLFLOW_LOGGER_POSTGRES_INTERNAL_PORT", "5432")
         )
+        self.mlflow_tracking_username = os.getenv(
+            "MLFLOW_TRACKING_USERNAME", "mlflow_user"
+        )
+        self.mlflow_tracking_password = os.getenv(
+            "MLFLOW_TRACKING_PASSWORD", "mlflow_password"
+        )
+
         self.postgres_user = os.getenv("MLFLOW_LOGGER_POSTGRES_USER", "mlflow_user")
         print(f"Postgres User: {self.postgres_user}")
         self.postgres_password = os.getenv(
