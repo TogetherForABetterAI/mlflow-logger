@@ -19,7 +19,7 @@ class Run(Base):
 class RunRegistry:
     def __init__(self, db_uri: str):
         self.engine = create_engine(
-            db_uri, echo=False, pool_pre_ping=True, pool_size=5, max_overflow=10
+            db_uri, echo=False, pool_pre_ping=True, pool_size=2, max_overflow=5
         )
         self.Session = sessionmaker(bind=self.engine)
         self._initialize_db_with_retries()
