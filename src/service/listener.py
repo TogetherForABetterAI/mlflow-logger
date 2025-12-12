@@ -2,6 +2,7 @@ import logging
 from multiprocessing import Queue
 import os
 import uuid
+import pika.exceptions
 
 import numpy as np
 from lib.model import LoggingDTO
@@ -24,19 +25,38 @@ class Listener:
         self._session_id = str(uuid.uuid4())  # Placeholder for session ID retrieval
         self.tracking_username = config.mlflow_tracking_username
         self.tracking_password = config.mlflow_tracking_password
+        self.shutdown_initiated = False
 
     def run(self):
         self.start_worker_pool()
-        self._middleware.basic_consume(
-            self._channel,
-            MLFLOW_QUEUE_NAME,
-            self._on_message,
-            consumer_tag=self._config.pod_name,
-        )
-        self._middleware.start_consuming(self._channel)
+        while not self.shutdown_initiated:
+            try:
+                self._middleware.basic_consume(
+                    self._channel,
+                    MLFLOW_QUEUE_NAME,
+                    self._on_message,
+                    consumer_tag=self._config.pod_name,
+                )
+                self._middleware.start_consuming(self._channel)
+            except (
+                pika.exceptions.AMQPConnectionError,
+                pika.exceptions.ChannelClosedByBroker,
+            ) as e:
+                logging.error(f"AMQP Connection error in Listener: {e}")
+                if not self.shutdown_initiated:
+                    self._reconnect_to_middleware()
+            except Exception as e:
+                logging.error(f"Error in Listener consumption loop: {e}")
+                break
 
         for worker in self._active_workers:
             worker.join()
+
+    def _reconnect_to_middleware(self):
+        self._middleware.connect()
+        self._channel = self._middleware.create_channel(
+            prefetch_count=self._config.num_workers
+        )
 
     def start_worker_pool(self):
         for i in range(self._config.num_workers):
@@ -56,6 +76,8 @@ class Listener:
         """Handle SIGTERM signal for graceful shutdown."""
         try:
             logging.info("Received SIGTERM, shutting down gracefully...")
+            self.shutdown_initiated = True
+            self._middleware.handle_sigterm()
             self._middleware.stop_consuming(self._channel)
             for _ in self._active_workers:
                 self._workers_queue.put((None, None))

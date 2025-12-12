@@ -1,4 +1,5 @@
 import logging
+import time
 import pika
 from lib.config import MLFLOW_EXCHANGE, MLFLOW_QUEUE_NAME, MLFLOW_ROUTING_KEY
 
@@ -11,22 +12,9 @@ class Middleware:
         self.consumer_tag = None
         self._is_running = False
         self._on_callback = True
-        try:
-            credentials = pika.PlainCredentials(config.username, config.password)
-            self.conn = pika.BlockingConnection(
-                pika.ConnectionParameters(
-                    host=config.host,
-                    port=config.port,
-                    credentials=credentials,
-                    heartbeat=5000,
-                )
-            )
-            self.logger.info(
-                f"Connected to RabbitMQ at {config.host}:{config.port} as {config.username}"
-            )
-        except Exception as e:
-            self.logger.error(f"Failed to connect to RabbitMQ: {e}")
-            raise e
+        self._shutdown_received = False
+
+        self.connect()
 
         channel = self.create_channel()
 
@@ -38,6 +26,35 @@ class Middleware:
         self.bind_queue(
             channel, MLFLOW_QUEUE_NAME, MLFLOW_EXCHANGE, routing_key=MLFLOW_ROUTING_KEY
         )
+        self.close_channel(channel)
+
+    def connect(self):
+        """Establish a connection to RabbitMQ with retries."""
+        delay = 5
+        max_delay = 60  # maximum delay of 1 minute
+        while not self._shutdown_received:
+            try:
+                credentials = pika.PlainCredentials(
+                    self.config.username, self.config.password
+                )
+                self.conn = pika.BlockingConnection(
+                    pika.ConnectionParameters(
+                        host=self.config.host,
+                        port=self.config.port,
+                        credentials=credentials,
+                        heartbeat=5000,
+                    )
+                )
+                self.logger.info(
+                    f"Connected to RabbitMQ at {self.config.host}:{self.config.port} as {self.config.username}"
+                )
+                return  # suceeded
+            except (pika.exceptions.AMQPConnectionError, Exception) as e:
+                self.logger.error(
+                    f"Failed to connect to RabbitMQ: {e}. Retrying in {delay} seconds..."
+                )
+                time.sleep(delay)
+                delay = min(delay * 2, max_delay)  # backoff exponential
 
     def is_running(self):
         return self._is_running
@@ -209,3 +226,7 @@ class Middleware:
         except Exception as e:
             self.logger.error(f"Error closing connection: {e}")
             raise e
+
+    def handle_sigterm(self):
+        """Handle SIGTERM signal for graceful shutdown."""
+        self._shutdown_received = True
