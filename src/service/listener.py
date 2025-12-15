@@ -3,6 +3,7 @@ from multiprocessing import Queue
 import os
 import uuid
 import pika.exceptions
+import threading
 
 import numpy as np
 from lib.model import LoggingDTO
@@ -20,6 +21,7 @@ class Listener:
             prefetch_count=config.num_workers
         )
         self._workers_queue = Queue()
+        self._ack_queue = Queue()  # Nueva queue para recibir confirmaciones
         self._active_workers = []
         self._run_registry = db
         self._session_id = str(uuid.uuid4())  # Placeholder for session ID retrieval
@@ -29,6 +31,11 @@ class Listener:
 
     def run(self):
         self.start_worker_pool()
+
+        # Iniciar thread para procesar ACKs
+        ack_thread = threading.Thread(target=self._process_acks, daemon=True)
+        ack_thread.start()
+
         while not self.shutdown_initiated:
             try:
                 self._middleware.basic_consume(
@@ -58,10 +65,36 @@ class Listener:
             prefetch_count=self._config.num_workers
         )
 
+    def _process_acks(self):
+        """Thread que procesa los ACKs de los workers."""
+        while not self.shutdown_initiated:
+            try:
+                ack_data = self._ack_queue.get(block=True)
+                if ack_data is not None:
+                    delivery_tag, success = ack_data
+                    if success:
+                        self._channel.basic_ack(delivery_tag=delivery_tag)
+                        logging.info(f"ACK sent for delivery_tag: {delivery_tag}")
+                    else:
+                        # NACK y requeue=false if the message processing failed
+                        self._channel.basic_nack(
+                            delivery_tag=delivery_tag, requeue=False
+                        )
+                        logging.warning(
+                            f"NACK sent for delivery_tag: {delivery_tag}, rejecting message"
+                        )
+                elif ack_data is None:
+                    logging.info("ACK thread received shutdown signal.")
+                    break
+            except Exception:
+                logging.exception("Error in ACK processing thread")
+                continue
+
     def start_worker_pool(self):
         for i in range(self._config.num_workers):
             mlflow_logger = MlflowLogger(
                 self._workers_queue,
+                self._ack_queue,
                 self._config.tracking_uri,
                 self.tracking_username,
                 self.tracking_password,
@@ -79,6 +112,7 @@ class Listener:
             self.shutdown_initiated = True
             self._middleware.handle_sigterm()
             self._middleware.stop_consuming(self._channel)
+            self._ack_queue.put(None) # signal to finish ack_thread
             for _ in self._active_workers:
                 self._workers_queue.put((None, None))
             for worker in self._active_workers:
@@ -88,10 +122,10 @@ class Listener:
             logging.error(f"Error during shutdown: {e}")
 
     # def _process_input_data(self, data):
-    #     target_shape = (28, 28, 1) 
-    #     target_dtype = np.float32  
+    #     target_shape = (28, 28, 1)
+    #     target_dtype = np.float32
     #     data_array = np.frombuffer(data, dtype=target_dtype)
-        
+
     #     data_size = np.prod(target_shape)
     #     num_elements = data_array.size
     #     num_samples = num_elements // data_size
@@ -109,10 +143,10 @@ class Listener:
     #         data_array = data_array.reshape((num_samples, *target_shape))
     #     except Exception as e:
     #         raise ValueError(f"Error reshaping data: {e}")
-        
+
     #     if len(data_array.shape) == 4:
     #         H, W = data_array.shape[1], data_array.shape[2]
-            
+
     #         if data_array.shape[-1] in [1, 3] and H != 1:
     #             data_array = np.transpose(data_array, (0, 3, 1, 2))
 
@@ -142,10 +176,6 @@ class Listener:
 
                 self._run_registry.save_run_id(session_id, run_id)
 
-            # inputs = self._process_input_data(message.data)
-
-            # logging.info(f"{inputs}")
-
             mlflow_data = LoggingDTO(
                 client_id=message.client_id,
                 session_id=message.session_id,
@@ -154,6 +184,7 @@ class Listener:
                 labels=list(message.labels),
                 pred=np.array([list(p.values) for p in message.pred], dtype=np.float32),
                 batch_index=message.batch_index,
+                delivery_tag=method.delivery_tag,
             )
             self._workers_queue.put(mlflow_data)
 
