@@ -50,7 +50,15 @@ class MlflowLogger(Process):
     ):
         probs_list = probs.tolist()
 
-        df = pd.DataFrame({"input": inputs, "y_pred": probs_list, "y_test": labels})
+        n_samples = len(labels)
+        total_bytes = len(inputs)
+        img_byte_size = total_bytes // n_samples
+        inputs_split = [
+            inputs[i * img_byte_size : (i + 1) * img_byte_size] 
+            for i in range(n_samples)
+        ]
+
+        df = pd.DataFrame({"input": inputs_split, "y_pred": probs_list, "y_test": labels})
 
         os.makedirs(ARTIFACTS_DIR, exist_ok=True)
 

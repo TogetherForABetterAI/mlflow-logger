@@ -87,6 +87,37 @@ class Listener:
         except Exception as e:
             logging.error(f"Error during shutdown: {e}")
 
+    # def _process_input_data(self, data):
+    #     target_shape = (28, 28, 1) 
+    #     target_dtype = np.float32  
+    #     data_array = np.frombuffer(data, dtype=target_dtype)
+        
+    #     data_size = np.prod(target_shape)
+    #     num_elements = data_array.size
+    #     num_samples = num_elements // data_size
+
+    #     if num_samples * data_size != num_elements:
+    #         raise ValueError(
+    #             f"Data size incompatible with expected format. "
+    #             f"Expected elements per sample: {data_size}, "
+    #             f"total elements: {num_elements}, "
+    #             f"calculated samples: {num_samples}, "
+    #             f"remainder: {num_elements % data_size}"
+    #         )
+
+    #     try:
+    #         data_array = data_array.reshape((num_samples, *target_shape))
+    #     except Exception as e:
+    #         raise ValueError(f"Error reshaping data: {e}")
+        
+    #     if len(data_array.shape) == 4:
+    #         H, W = data_array.shape[1], data_array.shape[2]
+            
+    #         if data_array.shape[-1] in [1, 3] and H != 1:
+    #             data_array = np.transpose(data_array, (0, 3, 1, 2))
+
+    #     return data_array
+
     def _on_message(self, ch, method, properties, body):
         try:
             logging.info("Received message for MLflow logging")
@@ -110,6 +141,10 @@ class Listener:
                     run_id = run.info.run_id
 
                 self._run_registry.save_run_id(session_id, run_id)
+
+            # inputs = self._process_input_data(message.data)
+
+            # logging.info(f"{inputs}")
 
             mlflow_data = LoggingDTO(
                 client_id=message.client_id,
